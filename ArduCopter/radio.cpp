@@ -94,6 +94,35 @@ void Copter::read_radio()
         const float dt = (tnow_ms - last_radio_update_ms)*1.0e-3f;
         rc_throttle_control_in_filter.apply(channel_throttle->get_control_in(), dt);
         last_radio_update_ms = tnow_ms;
+
+
+        
+        AP_HAL::CANFrame frame1;
+        uint8_t data[1] = {0x00};
+        uint64_t deadLine = AP_HAL::millis64() + 100; // 设置发送超时时间为100毫秒
+        uint16_t flags = AP_HAL::CANIface::AbortOnError; // 设置发送错误时中断标志
+
+        frame1.id = 0x01A4A6AA; // 你的扩展帧 ID
+        frame1.id |= AP_HAL::CANFrame::FlagEFF; // 设置扩展帧标志
+        uint8_t bus = 0; // CAN1
+        frame1.dlc = 1;  // 数据长度为 1 字节
+        memcpy(frame1.data, data, 1);
+
+        if (rc().channel(4)->get_radio_in() < 1200) {
+            data[0] = 0xE9;
+            memcpy(frame1.data, data, 1);
+            if (hal.can[bus] != nullptr) {
+                hal.can[bus]->send(frame1, deadLine, flags);// 发送数据到 CAN 总线
+            }
+        } else if (rc().channel(4)->get_radio_in() > 1800)  
+        {
+            if (hal.can[bus] != nullptr) {
+                data[0] = 0xAA; 
+                memcpy(frame1.data, data, 1);
+                hal.can[bus]->send(frame1, deadLine, flags);// 发送数据到 CAN 总线
+            }
+        }
+
         return;
     }
 
